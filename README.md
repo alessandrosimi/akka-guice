@@ -7,14 +7,14 @@ Akka Guice
 AkkaGuice delegates the creation of the [Akka](http://akka.io) actors to [Guice](https://github.com/google/guice).
 
 AkkaGuice is very simple to use. Import the project and use the `InjectedProps` class provided by Guice to create the actor instead of `Props`.
-```
-@Inject InjectedProps props;
+```Java
+@Inject private InjectedProps props;
 ...
 ActorRef ref = system.actorOf(props.create(MyActor.class, "Param"));
 ```
 `InjectedProps` has the same API of the `Props` Akka version.
 The actor is create by Guice so it benefits of the injection (constructor, methods and properites) and the AOP.
-```
+```Java
 public class MyActor {
   private final MyService myService;
   @Inject
@@ -25,7 +25,7 @@ public class MyActor {
 }
 ```
 The actor can be built with **not-injected** parameters.
-```
+```Java
 ActorRef ref = system.actorOf(props.create(MyActor.class, "Param"));
 ...
 public class MyActor {
@@ -39,7 +39,7 @@ public class MyActor {
 ```
 They must be different Guice types (or Guice binding key).
 For example if the actor needs 2 `String`s parameters, one of them should be annotated with `@Named("...")` or another qualifier annotation.
-```
+```Java
 public class MyActor {
   ...
   @Inject
