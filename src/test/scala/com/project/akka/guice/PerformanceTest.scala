@@ -1,83 +1,70 @@
 package com.project.akka.guice
 
 import org.scalatest.FeatureSpecLike
-import com.google.inject.{AbstractModule, Guice}
+import com.google.inject.Guice
 import scala.concurrent.duration._
 import akka.util.Timeout
-import akka.actor.{Props, ActorSystem, Actor}
+import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import javax.inject.Inject
 import com.project.akka.guice.PerformanceTest._
+import akka.pattern.ask
+import com.google.inject.util.Modules
+import scala.concurrent.Await
 
 class PerformanceTest extends FeatureSpecLike {
 
-  implicit val timeout = Timeout(2.seconds)
+  implicit val timeout = Timeout(10.seconds)
 
   feature("Create the instance with a Child injector") {
-    scenario("Direct") {
+    scenario("No parameter") {
       val system = ActorSystem("test")
-      val injector = Guice.createInjector(new Module)
+      val injector = Guice.createInjector(Modules.EMPTY_MODULE)
       val props = injector.getInstance(classOf[InjectedProps])
-      def direct() = {
-        var i = 0
-        val start = System.currentTimeMillis()
-        while(i < 100000) {
-          i += 1
-          system.actorOf(Props(classOf[NoParamsActor]))
-        }
-        val end = System.currentTimeMillis()
-        println("Direct " + (end - start) + ", each is " + (end - start) / 10000)
-      }
-      direct()
-      def injected() = {
-        var i = 0
-         val start = System.currentTimeMillis()
-         while(i < 100000) {
-           i += 1
-           system.actorOf(props(classOf[NoParamsActor]))
-         }
-         val end = System.currentTimeMillis()
-         println("Injected " + (end - start) + ", each is " + (end - start) / 10000)
-      }
-      injected()
+      val injectedTime = Await.result(system.actorOf(Props[Runner]) ? props(classOf[NoParamsActor]), 10.seconds)
+      println("No Parameter. Injected " + injectedTime)
+      val nativeTime = Await.result(system.actorOf(Props[Runner]) ? Props(classOf[NoParamsActor]), 10.seconds)
+      println("No Parameter. Native " + nativeTime)
     }
-    scenario("Child") {
+    scenario("Parameter") {
       val system = ActorSystem("test")
-      val injector = Guice.createInjector(new Module)
+      val injector = Guice.createInjector(Modules.EMPTY_MODULE)
       val props = injector.getInstance(classOf[InjectedProps])
-      def direct() = {
-        var i = 0
-        val start = System.currentTimeMillis()
-        while(i < 100000) {
-          i += 1
-          system.actorOf(Props(classOf[ParamActor], ""))
-        }
-        val end = System.currentTimeMillis()
-        println("Param.Direct " + (end - start) + ", each is " + (end - start) / 10000)
-      }
-      direct()
-      def injected() = {
-        var i = 0
-        val start = System.currentTimeMillis()
-        while(i < 100000) {
-          i += 1
-          system.actorOf(props(classOf[ParamActor], ""))
-        }
-        val end = System.currentTimeMillis()
-        println("Param.Injected " + (end - start) + ", each is " + (end - start) / 10000)
-      }
-      injected()
+      val nativeTime = Await.result(system.actorOf(Props[Runner]) ? Props(classOf[ParamActor], ""), 10.seconds)
+      println("Parameter. Native " + nativeTime)
+      val injectedTime = Await.result(system.actorOf(Props[Runner]) ? props(classOf[ParamActor], ""), 10.seconds)
+      println("Parameter. Injected " + injectedTime)
     }
   }
 }
 
 object PerformanceTest {
 
-  class Module extends AbstractModule {
-    def configure() = {}
+  val Cycle = 10000
+
+  class Runner extends Actor {
+
+    var propsSender: ActorRef = _
+    var startTime: Long = 0
+    var counter = 0
+
+    def receive = {
+      case props: Props =>
+        propsSender = sender()
+        startTime = System.currentTimeMillis()
+        counter = 0
+        (1 to Cycle).foreach( context.actorOf(props) ! _ )
+      case _ =>
+        counter += 1
+        if (counter == Cycle) {
+          val endTime = System.currentTimeMillis()
+          propsSender ! (endTime - startTime)
+        }
+    }
+
   }
 
   class NoParamsActor extends Actor {
-    def receive: Actor.Receive = { case _ => }
+    def receive = { case message => sender() ! message }
   }
 
   class ParamActor @Inject() (hello: String) extends NoParamsActor

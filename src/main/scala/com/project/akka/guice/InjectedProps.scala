@@ -1,14 +1,15 @@
 package com.project.akka.guice
 
-import akka.actor._
 import javax.inject.{Qualifier, Inject}
 import com.google.inject._
 import scala.annotation.varargs
 import java.lang.reflect.Constructor
 import java.lang.annotation.Annotation
+import com.google.inject.spi.{DefaultBindingScopingVisitor, Message}
+import akka.actor.{IndirectActorProducer, Props, Actor}
 
 @Singleton
-class InjectedProps @Inject() (injector: Injector) {
+class InjectedProps @Inject() (injector: Injector) { // TODO Write documentation
 
   /**
    * Scala API: create a Props given a class and its constructor arguments.
@@ -29,11 +30,34 @@ object InjectedProps {
     def actorClass: Class[_ <: Actor] = actorType
 
     def produce(): Actor = { // TODO Create a precondition over the class, it should not be bound as singleton
+      if (isSingletonActor) throwException("The actor class cannot be bound in a singleton scope.")
       if (args.isEmpty) {
         injector.getInstance(actorType)
       } else {
         argInjector.getInstance(actorType)
       }
+    }
+
+    private def isSingletonActor = {
+      val key = Key.get(actorType)
+      val binding = injector.getExistingBinding(key)
+      scopeOf(binding) == Scopes.SINGLETON || hasSingletonAnnotation
+    }
+
+    private def scopeOf(binding: Binding[_]): Scope = {
+      def visitor = new DefaultBindingScopingVisitor[Scope] {
+        override def visitScope(scope: Scope): Scope = scope
+      }
+      if (binding != null) binding.acceptScopingVisitor(visitor) else Scopes.NO_SCOPE
+    }
+
+    private val hasSingletonAnnotation =
+      actorType.isAnnotationPresent(classOf[javax.inject.Singleton]) ||
+      actorType.isAnnotationPresent(classOf[com.google.inject.Singleton])
+
+    private def throwException(messages: String*) = {
+      import scala.collection.JavaConversions._
+      throw new CreationException(messages.map(new Message(_)))
     }
 
     private def argInjector = injector.createChildInjector(new AbstractModule {
@@ -50,7 +74,7 @@ object InjectedProps {
      */
     private def bindingArgs = {
       val constructor = actorType.getConstructors.find(injectAnnotation)
-      require(constructor.isDefined, "Impossible to find a constructor annotated with @Inject annotation.") // TODO Use the right exception
+      if (constructor.isEmpty) throwException("Impossible to find a constructor annotated with @Inject annotation.") // TODO Create a test for this scenario
       val keys = constructor.map(asKeys).get
       //require(keys.toSet.size == keys.size && keys.size != 1) TODO Decide to add the validation here or not
       keys.filter {
@@ -58,7 +82,7 @@ object InjectedProps {
       }.zip(args).map(toBindingArg)
     }
 
-    private def injectAnnotation(constructor: Constructor[_]) = // TODO Create a test for both Inject annotation
+    private def injectAnnotation(constructor: Constructor[_]) =
       constructor.isAnnotationPresent(classOf[javax.inject.Inject]) ||
       constructor.isAnnotationPresent(classOf[com.google.inject.Inject])
 
@@ -75,7 +99,7 @@ object InjectedProps {
       }
     }
 
-    private def qualifierAnnotation(annotation: Annotation) = // TODO Create a test for both qualifiers
+    private def qualifierAnnotation(annotation: Annotation) =
       annotation.annotationType.isAnnotationPresent(classOf[Qualifier]) ||
       annotation.annotationType.isAnnotationPresent(classOf[BindingAnnotation])
 

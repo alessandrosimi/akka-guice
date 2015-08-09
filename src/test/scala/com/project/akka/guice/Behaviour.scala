@@ -1,8 +1,7 @@
 package com.project.akka.guice
 
 import com.google.inject.{Key, Injector, Guice, Module}
-import akka.actor.{ActorRef, Props, ActorSystem}
-import com.project.akka.guice.InjectedProps
+import akka.actor._
 import scala.concurrent.Await
 import akka.pattern.ask
 import scala.concurrent.duration._
@@ -10,6 +9,8 @@ import akka.util.Timeout
 import org.scalatest.Assertions
 import com.google.inject.name.Names
 import com.project.akka.guice.Behaviour.{Given, When, Then}
+import akka.actor.SupervisorStrategy.Stop
+import scala.reflect.ClassTag
 
 trait Behaviour {
   val given = new Given
@@ -18,6 +19,8 @@ trait Behaviour {
 }
 
 object Behaviour {
+
+  private implicit val timeout = Timeout(2.seconds)
 
   // Given
   class Given {
@@ -31,13 +34,12 @@ object Behaviour {
 
   // When
   class When {
-    private implicit val timeout = Timeout(2.seconds)
     def the(system: ActorSystem) = new WhenActorSystem(system)
-    def a_message_is_sent_to(actorRef: ActorRef) = Await.result(actorRef ? "", 2.seconds)
+    def a_message_is_sent_to(actorRef: ActorRef) = Await.result((actorRef ? "").mapTo[String], 2.seconds)
     def the(injector: Injector) = new WhenInjector(injector)
   }
   class WhenActorSystem(system: ActorSystem) {
-    def create_the_actor_with(props: Props) = system.actorOf(props)
+    def create_the_actor_with(props: Props) = system.actorOf(Props(classOf[Supervisor], props))
   }
   class WhenInjector(injector: Injector) {
     def gets_the_injected_props = injector.getInstance(classOf[InjectedProps])
@@ -46,9 +48,57 @@ object Behaviour {
 
   // Then
   class Then {
-    def the(value: Any) = new ThenValue(value)
+    def the(value: String) = new ThenValue(value)
+    def the(exception: ActorInitializationException) = new ThenException(exception)
+    def the(actor: ActorRef) = new ThenActor(actor)
   }
-  class ThenValue(actual: Any) extends Assertions {
+  class ThenValue(actual: String) extends Assertions {
     def should_be(expected: String) = assert(actual === expected)
+    def should_contains(expected: String) = assert(actual.contains(expected))
+  }
+  class ThenActor(actor: ActorRef) extends Assertions {
+    def should_be_not_started = {
+      val response = Await.result(actor ? "", 2.seconds)
+      assert(response.isInstanceOf[ActorInitializationException])
+      response.asInstanceOf[ActorInitializationException]
+    }
+  }
+  class ThenException(exception: ActorInitializationException) extends Assertions {
+    def should_be_caused_by[T <: Exception : ClassTag]: String = {
+      assert(exception.getCause.getClass == implicitly[ClassTag[T]].runtimeClass)
+      exception.getCause.getMessage
+    }
+  }
+
+  // Supervisor
+  private class Supervisor(props: Props) extends Actor with Stash {
+
+    var actor: Option[ActorRef] = None
+    var error: Option[Exception] = None
+
+    override def preStart() = {
+      context.actorOf(props) ! Identify("please")
+    }
+
+    override val supervisorStrategy =
+      OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+        case exception: Exception =>
+          self ! exception
+          Stop
+      }
+
+    def receive = {
+      case exception: Exception =>
+        error = Some(exception)
+        unstashAll()
+      case ActorIdentity(_, actorRef) =>
+        actor = actorRef
+        unstashAll()
+      case message: String =>
+        if (actor.isDefined) actor.get forward message
+        else if (error.isDefined) sender() ! error.get
+        else stash()
+    }
+
   }
 }
