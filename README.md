@@ -10,9 +10,12 @@ AkkaGuice is very simple to use. Import the project and use the `InjectedProps` 
 ```Java
 @Inject private InjectedProps props;
 ...
-ActorRef ref = system.actorOf(props.create(MyActor.class, "Param"));
+ActorRef ref = system.actorOf(props.create(MyActor.class));
 ```
-`InjectedProps` has the same API of the `Props` Akka version.
+`InjectedProps` has the same API of the `Props` Akka version, availabile for Scala and Java.
+```Scala
+val ref = system.actorOf(props(classOf[MyActor]))
+```
 The actor is create by Guice so it benefits of the injection (constructor, methods and properites) and the AOP.
 ```Java
 public class MyActor {
@@ -49,4 +52,4 @@ public class MyActor {
   ...
 }
 ```
-AkkaGuice provides API for Scala and Java. It also check the actor hasn't been bound as `Singleton`.
+AkkaGuice does also a sanity check to avoid the `Singleton` binding of actor.
