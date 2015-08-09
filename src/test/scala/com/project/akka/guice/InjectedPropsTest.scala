@@ -33,6 +33,15 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       val responseValue = when.the(injector).gets_the_string_named(Response)
       then.the(response).should_be(responseValue)
     }
+    scenario("Scala API with class tag") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val ref = when.the(system).create_the_actor_with(props[NoParameterActor])
+      val response = when.a_message_is_sent_to(ref)
+      val responseValue = when.the(injector).gets_the_string_named(Response)
+      then.the(response).should_be(responseValue)
+    }
     scenario("Java API") {
       val injector = given.an_injector.with_module(new Module)
       val system = given.an_actor_system

@@ -22,6 +22,7 @@ import java.lang.reflect.Constructor
 import java.lang.annotation.Annotation
 import com.google.inject.spi.{DefaultBindingScopingVisitor, Message}
 import akka.actor.{IndirectActorProducer, Props, Actor}
+import scala.reflect.ClassTag
 
 @Singleton
 class InjectedProps @Inject() (injector: Injector) { // TODO Write documentation
@@ -30,6 +31,12 @@ class InjectedProps @Inject() (injector: Injector) { // TODO Write documentation
    * Scala API: create a Props given a class and its constructor arguments.
    */
   def apply(clazz: Class[_ <: Actor], args: Any*): Props = Props(classOf[InjectedProps.Producer], injector, clazz, args.toList)
+
+  /**
+   * Scala API: Returns a Props that has default values except for "creator" which will be a function that creates an instance
+   * of the supplied type using the default constructor.
+   */
+  def apply[T <: Actor: ClassTag](): Props = apply(implicitly[ClassTag[T]].runtimeClass.asSubclass(classOf[Actor]), List.empty)
 
   /**
    * Java API: create a Props given a class and its constructor arguments.
