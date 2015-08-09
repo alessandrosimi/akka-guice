@@ -1,9 +1,8 @@
-package com.poject.akka.guice
+package com.project.akka.guice
 
 import org.scalatest.FeatureSpecLike
 import com.google.inject.{Provides, AbstractModule}
 import akka.actor.Actor
-import com.poject.akka.guice.InjectedPropsTest._
 import javax.inject.{Singleton, Named, Inject}
 
 class InjectedPropsTest extends FeatureSpecLike with Behaviour {

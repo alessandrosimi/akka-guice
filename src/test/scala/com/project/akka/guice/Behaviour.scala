@@ -1,7 +1,6 @@
-package com.poject.akka.guice
+package com.project.akka.guice
 
 import com.google.inject.{Key, Injector, Guice, Module}
-import com.poject.akka.guice.Behaviour.{Then, When, Given}
 import akka.actor.{ActorRef, Props, ActorSystem}
 import com.project.akka.guice.InjectedProps
 import scala.concurrent.Await

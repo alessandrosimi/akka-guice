@@ -1,8 +1,7 @@
-package com.poject.akka.guice
+package com.project.akka.guice
 
 import org.scalatest.FeatureSpecLike
 import com.google.inject.{AbstractModule, Guice}
-import com.poject.akka.guice.PerformanceTest.{ParamActor, NoParamsActor, Module}
 import scala.concurrent.duration._
 import akka.util.Timeout
 import com.google.inject.util.Modules
