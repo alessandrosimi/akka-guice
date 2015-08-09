@@ -1,6 +1,52 @@
 Akka Guice
 ====
 
-**Latest release:** Pre release
+**Latest release:** Pre Release<br/>
+**License:** [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-AkkaGuice delegates the creation of the [Akka](http://akka.io) Actor to [Guice](https://github.com/google/guice).
+AkkaGuice delegates the creation of the [Akka](http://akka.io) actors to [Guice](https://github.com/google/guice).
+
+AkkaGuice is very simple to use. Import the project and use the `InjectedProps` class provided by Guice to create the actor instead of `Props`.
+```
+@Inject InjectedProps props;
+...
+ActorRef ref = system.actorOf(props.create(MyActor.class, "Param"));
+```
+`InjectedProps` has the same API of the `Props` Akka version.
+The actor is create by Guice so it benefits of the injection (constructor, methods and properites) and the AOP.
+```
+public class MyActor {
+  private final MyService myService;
+  @Inject
+  public class MyActor(MyService myService) {
+    this.myService = myService;
+  }
+  ...
+}
+```
+The actor can be built with **not-injected** parameters.
+```
+ActorRef ref = system.actorOf(props.create(MyActor.class, "Param"));
+...
+public class MyActor {
+  private final MyService myService;
+  @Inject
+  public class MyActor(MyService myService, String param) {
+    this.myService = myService;
+  }
+  ...
+}
+```
+They must be different Guice types (or Guice binding key).
+For example if the actor needs 2 `String`s parameters, one of them should be annotated with `@Named("...")` or another qualifier annotation.
+```
+public class MyActor {
+  ...
+  @Inject
+  public class MyActor(MyService myService, String param, @Named("other") param2) {
+    this.myService = myService;
+  }
+  ...
+}
+```
+AkkaGuice provides API for Scala and Java. It also check the actor hasn't been bound as `Singleton`.
