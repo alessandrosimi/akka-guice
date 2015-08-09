@@ -4,6 +4,7 @@ import org.scalatest.FeatureSpecLike
 import com.google.inject.{Provides, AbstractModule}
 import akka.actor.Actor
 import javax.inject.{Singleton, Named, Inject}
+import com.project.akka.guice.InjectedPropsTest._
 
 class InjectedPropsTest extends FeatureSpecLike with Behaviour {
 

@@ -9,6 +9,7 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import org.scalatest.Assertions
 import com.google.inject.name.Names
+import com.project.akka.guice.Behaviour.{Given, When, Then}
 
 trait Behaviour {
   val given = new Given

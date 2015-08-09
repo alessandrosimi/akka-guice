@@ -4,11 +4,9 @@ import org.scalatest.FeatureSpecLike
 import com.google.inject.{AbstractModule, Guice}
 import scala.concurrent.duration._
 import akka.util.Timeout
-import com.google.inject.util.Modules
 import akka.actor.{Props, ActorSystem, Actor}
-import javax.inject.{Named, Inject}
-import com.google.inject.name.Names
-import com.project.akka.guice.InjectedProps
+import javax.inject.Inject
+import com.project.akka.guice.PerformanceTest._
 
 class PerformanceTest extends FeatureSpecLike {
 
@@ -19,7 +17,7 @@ class PerformanceTest extends FeatureSpecLike {
       val system = ActorSystem("test")
       val injector = Guice.createInjector(new Module)
       val props = injector.getInstance(classOf[InjectedProps])
-      def direct = {
+      def direct() = {
         var i = 0
         val start = System.currentTimeMillis()
         while(i < 100000) {
@@ -29,8 +27,8 @@ class PerformanceTest extends FeatureSpecLike {
         val end = System.currentTimeMillis()
         println("Direct " + (end - start) + ", each is " + (end - start) / 10000)
       }
-      direct
-      def injected = {
+      direct()
+      def injected() = {
         var i = 0
          val start = System.currentTimeMillis()
          while(i < 100000) {
@@ -40,13 +38,13 @@ class PerformanceTest extends FeatureSpecLike {
          val end = System.currentTimeMillis()
          println("Injected " + (end - start) + ", each is " + (end - start) / 10000)
       }
-      injected
+      injected()
     }
     scenario("Child") {
       val system = ActorSystem("test")
       val injector = Guice.createInjector(new Module)
       val props = injector.getInstance(classOf[InjectedProps])
-      def direct = {
+      def direct() = {
         var i = 0
         val start = System.currentTimeMillis()
         while(i < 100000) {
@@ -56,8 +54,8 @@ class PerformanceTest extends FeatureSpecLike {
         val end = System.currentTimeMillis()
         println("Param.Direct " + (end - start) + ", each is " + (end - start) / 10000)
       }
-      direct
-      def injected = {
+      direct()
+      def injected() = {
         var i = 0
         val start = System.currentTimeMillis()
         while(i < 100000) {
@@ -67,7 +65,7 @@ class PerformanceTest extends FeatureSpecLike {
         val end = System.currentTimeMillis()
         println("Param.Injected " + (end - start) + ", each is " + (end - start) / 10000)
       }
-      injected
+      injected()
     }
   }
 }
