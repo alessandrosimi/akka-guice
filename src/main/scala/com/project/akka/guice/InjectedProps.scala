@@ -29,7 +29,7 @@ object InjectedProps {
 
     def actorClass: Class[_ <: Actor] = actorType
 
-    def produce(): Actor = { // TODO Create a precondition over the class, it should not be bound as singleton
+    def produce(): Actor = {
       if (isSingletonActor) throwException("The actor class cannot be bound in a singleton scope.")
       if (args.isEmpty) {
         injector.getInstance(actorType)
