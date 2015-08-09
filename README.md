@@ -14,7 +14,7 @@ ActorRef ref = system.actorOf(props.create(MyActor.class));
 ```
 `InjectedProps` has the same API of the `Props` Akka version, availabile for Scala and Java.
 ```Scala
-val ref = system.actorOf(props(classOf[MyActor]))
+val ref = system.actorOf(props[MyActor])
 ```
 The actor is create by Guice so it benefits of the injection (constructor, methods and properites) and the AOP.
 ```Java
