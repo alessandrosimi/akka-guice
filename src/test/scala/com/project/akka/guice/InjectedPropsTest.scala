@@ -87,6 +87,15 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       val errorMessage = then.the(error).should_be_caused_by[CreationException]
       then.the(errorMessage).should_contains("String was already configured")
     }
+    scenario("Too many non injected parameters") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ParameterActor], "one", "two"))
+      val error = then.the(actor).should_be_not_started
+      val errorMessage = then.the(error).should_be_caused_by[CreationException]
+      then.the(errorMessage).should_contains("not injected parameter")
+    }
   }
   feature("Creating an actor with a singleton scope should fail") {
     scenario("Singleton scope actor") {

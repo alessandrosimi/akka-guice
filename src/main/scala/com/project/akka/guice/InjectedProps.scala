@@ -30,19 +30,24 @@ class InjectedProps @Inject() (injector: Injector) { // TODO Write documentation
   /**
    * Scala API: create a Props given a class and its constructor arguments.
    */
-  def apply(clazz: Class[_ <: Actor], args: Any*): Props = Props(classOf[InjectedProps.Producer], injector, clazz, args.toList)
+  def apply(clazz: Class[_ <: Actor], args: Any*): Props = createProps(clazz, args.toList)
 
   /**
    * Scala API: Returns a Props that has default values except for "creator" which will be a function that creates an instance
    * of the supplied type using the default constructor.
    */
-  def apply[T <: Actor: ClassTag](): Props = apply(implicitly[ClassTag[T]].runtimeClass.asSubclass(classOf[Actor]), List.empty)
+  def apply[T <: Actor: ClassTag](): Props = createProps(implicitly[ClassTag[T]].runtimeClass.asSubclass(classOf[Actor]), List.empty)
 
   /**
    * Java API: create a Props given a class and its constructor arguments.
    */
   @varargs
-  def create(clazz: Class[_ <: Actor], args: AnyRef*): Props = Props(classOf[InjectedProps.Producer], injector, clazz, args.toList)
+  def create(clazz: Class[_ <: Actor], args: AnyRef*): Props = createProps(clazz, args.toList)
+
+  /**
+   * Internal API to create the Props
+   */
+  private def createProps(clazz: Class[_ <: Actor], args: Seq[Any]) = Props(classOf[InjectedProps.Producer], injector, clazz, args.toList)
 
 }
 
@@ -98,10 +103,11 @@ object InjectedProps {
       val constructor = actorType.getConstructors.find(injectAnnotation)
       if (constructor.isEmpty) throwException("Impossible to find a constructor annotated with @Inject annotation.") // TODO Create a test for this scenario
       val keys = constructor.map(asKeys).get
-      //require(keys.toSet.size == keys.size && keys.size != 1) TODO Decide to add the validation here or not
-      keys.filter {
+      val bindings = keys.filter {
         case key => injector.getExistingBinding(key) == null // TODO Filter with JIT binding if there are no performance problem
       }.zip(args).map(toBindingArg)
+      if (bindings.size != args.size) throwException(s"Impossible to find a constructor with ${args.size} not injected parameter(s)")
+      bindings
     }
 
     private def injectAnnotation(constructor: Constructor[_]) =

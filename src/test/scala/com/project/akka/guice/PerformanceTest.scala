@@ -51,8 +51,8 @@ object PerformanceTest {
     
     def receive = {
       case Request(native, injected) =>
-        nativeRunner ! SingleRequest(native, true)
-        injectedRunner ! SingleRequest(injected, false)
+        nativeRunner ! SingleRequest(native, native = true)
+        injectedRunner ! SingleRequest(injected, native = false)
         nativeTime = 0
         injectedTime = 0
         propsSender = sender()
@@ -75,22 +75,26 @@ object PerformanceTest {
   
   class Runner extends Actor {
 
+    var props: Props = _
     var propsSender: ActorRef = _
     var time: Long = 0
     var counter = 0
     var isNative = true
     
     def receive = {
-      case SingleRequest(props, native) =>
+      case SingleRequest(prop, native) =>
+        this.props = prop
         propsSender = sender()
         isNative = native
         time = 0
         counter = 0
-        (1 to Cycles).foreach ( number => context.actorOf(props) ! Counter() )
-      case response: Counter =>
+        context.actorOf(prop) ! InitCounter()
+      case response: InitCounted =>
         counter += 1
         time += response.duration
-        if (counter == Cycles) {
+        if (counter != Cycles) {
+          context.actorOf(props) ! InitCounter()
+        } else {
           propsSender ! (if (isNative) NativeResult(time) else InjectedResult(time))
         }
     }
@@ -100,7 +104,8 @@ object PerformanceTest {
   def time = System.currentTimeMillis()
 
   class NoParamsActor extends Actor {
-    def receive = { case message => sender() ! message }
+    val end = time
+    def receive = { case counter: InitCounter => sender() ! InitCounted(end - counter.start) }
   }
 
   class ParamActor @Inject() (hello: String) extends NoParamsActor
@@ -108,17 +113,16 @@ object PerformanceTest {
   case class Request(nativeProps: Props, injectedProps: Props)
   case class SingleRequest(props: Props, native: Boolean)
   
-  case class Counter() {
+  case class InitCounter() {
     val start = time
-    def duration = time - start
   }
+
+  case class InitCounted(duration: Long)
   
   case class Result(native: Long, injected: Long) {
     override def toString: String = s"""
-      |Native:   total ${native/1000} sec
-      |          each  ${native/Cycles} mills
-      |Injected: total ${injected/1000} sec
-      |          each  ${injected/Cycles} mills""".stripMargin
+      |Native:   total $native mills
+      |Injected: total $injected mills""".stripMargin
   }
   
 }
