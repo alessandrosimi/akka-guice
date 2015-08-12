@@ -18,12 +18,12 @@ package com.project.akka.guice
 import org.scalatest.FeatureSpecLike
 import com.google.inject.{Scopes, CreationException, Provides, AbstractModule}
 import akka.actor.Actor
-import javax.inject.{Singleton, Named, Inject}
+import javax.inject.{Inject, Singleton, Named}
 import com.project.akka.guice.InjectedPropsTest._
 
 class InjectedPropsTest extends FeatureSpecLike with Behaviour {
 
-  feature("Create actor with no parameters constructor") {
+  feature("Be able to create actor with no parameters constructor") {
     scenario("Scala API") {
       val injector = given.an_injector.with_module(new Module)
       val system = given.an_actor_system
@@ -52,7 +52,7 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       then.the(response).should_be(responseValue)
     }
   }
-  feature("Create actor with a constructor with parameter") {
+  feature("Be able to create actor with a constructor with parameter") {
     scenario("Two parameters, only one is injected") {
       val injector = given.an_injector.with_module(new Module)
       val system = given.an_actor_system
@@ -97,7 +97,7 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       then.the(errorMessage).should_contains("not injected parameter")
     }
   }
-  feature("Creating an actor with a singleton scope should fail") {
+  feature("Not be able to create an actor with a singleton scope") {
     scenario("Singleton scope actor") {
       val injector = given.an_injector.with_module(new Module)
       val system = given.an_actor_system
@@ -134,6 +134,44 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       then.the(response).should_be("")
     }
   }
+  feature("Be able to create an actor with generic parameter constructor") {
+    scenario("One generic parameter") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ActorWithOneGenericParameter], List("one")))
+      val response = when.a_message_is_sent_to(actor)
+      then.the(response).should_be("one")
+    }
+    scenario("Two generic parameters") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ActorWithTwoGenericParameters], List("one"), List(2)))
+      val response = when.a_message_is_sent_to(actor)
+      then.the(response).should_be("one2")
+    }
+    scenario("Fail with two generic parameters of same type") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ActorWithTwoGenericParametersOfSameType], List("one"), List("two")))
+      val error = then.the(actor).should_be_not_started
+      val errorMessage = then.the(error).should_be_caused_by[CreationException]
+      then.the(errorMessage).should_contains("was already configured")
+    }
+  }
+  feature("Be able to create an actor passing sub-type parameters") {
+    scenario("Using subtype parameter should pass") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ActorWithSubTypeParameter], List("one")))
+      val response = when.a_message_is_sent_to(actor)
+      then.the(response).should_be("one")
+    }
+  }
+
 }
 
 object InjectedPropsTest {
@@ -149,27 +187,19 @@ object InjectedPropsTest {
   }
 
   class NoParameterActor @Inject() (@Named(Response) val response: String) extends Actor {
-    def receive = {
-      case _ => sender() ! response
-    }
+    def receive = { case _ => sender() ! response }
   }
 
   class ParameterActor @Inject() (@Named(Response) val response: String, val suffix: String) extends Actor {
-    def receive = {
-      case _ => sender() ! response + suffix
-    }
+    def receive = { case _ => sender() ! response + suffix }
   }
 
   class ActorWithTwoStringParametersWithAnnotation @Inject() (@Named("one") val one: String, val two: String) extends Actor {
-    def receive = {
-      case _ => sender() ! one + two
-    }
+    def receive = { case _ => sender() ! one + two }
   }
 
   class ActorWithTwoStringParametersWithGuiceAnnotation @com.google.inject.Inject() (@com.google.inject.name.Named("one") val one: String, val two: String) extends Actor {
-    def receive = {
-      case _ => sender() ! one + two
-    }
+    def receive = { case _ => sender() ! one + two }
   }
 
   abstract class EmptyActor extends Actor {
@@ -187,5 +217,21 @@ object InjectedPropsTest {
   class SingletonActor extends EmptyActor
 
   class BoundActor extends EmptyActor
+
+  class ActorWithOneGenericParameter @Inject() (one: List[String]) extends Actor {
+    def receive = { case _ => sender() ! one(0) }
+  }
+
+  class ActorWithTwoGenericParameters @Inject() (one: List[String], two: List[Integer]) extends Actor {
+    def receive = { case _ => sender() ! one(0) + two(0) }
+  }
+
+  class ActorWithTwoGenericParametersOfSameType @Inject() (one: List[String], two: List[String]) extends Actor {
+    def receive = { case _ => sender() ! one(0) + two(0) }
+  }
+
+  class ActorWithSubTypeParameter @Inject() (one: Seq[String]) extends Actor {
+    def receive = { case _ => sender() ! one(0) }
+  }
 
 }
