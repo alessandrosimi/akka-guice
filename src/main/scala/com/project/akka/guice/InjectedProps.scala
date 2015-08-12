@@ -168,7 +168,7 @@ object InjectedProps {
      */
     private def argsToBind = {
       val constructor = actorType.getConstructors.find(injectAnnotation)
-      if (constructor.isEmpty) throwException("Impossible to find a constructor annotated with @Inject annotation.") // TODO Create a test for this scenario
+      if (constructor.isEmpty) throwException("Impossible to find a constructor annotated with @Inject annotation.")
       val keys = constructor.map(asKeys).get
       val bindings = keys.filter {
         case key => injector.getExistingBinding(key) == null

@@ -96,6 +96,15 @@ class InjectedPropsTest extends FeatureSpecLike with Behaviour {
       val errorMessage = then.the(error).should_be_caused_by[CreationException]
       then.the(errorMessage).should_contains("not injected parameter")
     }
+    scenario("Constructor should be annotated") {
+      val injector = given.an_injector.with_module(new Module)
+      val system = given.an_actor_system
+      val props = when.the(injector).gets_the_injected_props
+      val actor = when.the(system).create_the_actor_with(props(classOf[ActorWithParameterWithoutAnnotation], "one"))
+      val error = then.the(actor).should_be_not_started
+      val errorMessage = then.the(error).should_be_caused_by[CreationException]
+      then.the(errorMessage).should_contains("find a constructor annotated")
+    }
   }
   feature("Not be able to create an actor with a singleton scope") {
     scenario("Singleton scope actor") {
@@ -201,6 +210,8 @@ object InjectedPropsTest {
   class ActorWithTwoStringParametersWithGuiceAnnotation @com.google.inject.Inject() (@com.google.inject.name.Named("one") val one: String, val two: String) extends Actor {
     def receive = { case _ => sender() ! one + two }
   }
+
+  class ActorWithParameterWithoutAnnotation(val one: String) extends EmptyActor
 
   abstract class EmptyActor extends Actor {
     def receive = { case _ => sender() ! "" }
